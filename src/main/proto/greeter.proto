@@ -5,6 +5,7 @@ option java_multiple_files = true;
 
 service Greeter {
   rpc SayHello (HelloRequest) returns (HelloReply);
+  rpc DownloadFile (FileRequest) returns (stream FileChunk);
 }
 
 message HelloRequest {
@@ -13,4 +14,13 @@ message HelloRequest {
 
 message HelloReply {
   string message = 1;
+}
+
+message FileRequest {
+  string filename = 1;
+}
+
+message FileChunk {
+  repeated string lines = 1;
+  int32 chunk_number = 2;
 }

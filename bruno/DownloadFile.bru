@@ -1,0 +1,22 @@
+meta {
+  name: DownloadFile
+  type: grpc
+  seq: 2
+}
+
+grpc {
+  url: {{grpc_host}}
+  method: /Greeter/DownloadFile
+  body: grpc
+  auth: none
+  methodType: server-streaming
+}
+
+body:grpc {
+  name: message 1
+  content: '''
+    {
+      "filename": "users.csv"
+    }
+  '''
+}

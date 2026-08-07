@@ -1,6 +1,6 @@
 # gRPC Greeter Server
 
-A minimal gRPC server built with Spring Boot 4 and Java 25, demonstrating how to define a Protobuf service and implement it with the new `spring-boot-starter-grpc-server` starter.
+A gRPC server built with Spring Boot 4 and Java 25, demonstrating unary and server-side streaming RPCs using the new `spring-boot-starter-grpc-server` starter.
 
 ## Tech Stack
 
@@ -15,19 +15,33 @@ A minimal gRPC server built with Spring Boot 4 and Java 25, demonstrating how to
 
 ```protobuf
 service Greeter {
-  rpc SayHello (HelloRequest) returns (HelloReply);
-}
-
-message HelloRequest {
-  string name = 1;
-}
-
-message HelloReply {
-  string message = 1;
+  rpc SayHello    (HelloRequest) returns (HelloReply);
+  rpc DownloadFile(FileRequest)  returns (stream FileChunk);
 }
 ```
 
-The server responds with `Hello, {name}!` for every `SayHello` call.
+### SayHello — Unary
+
+The client sends a name and receives a single greeting.
+
+```protobuf
+message HelloRequest { string name    = 1; }
+message HelloReply   { string message = 1; }
+```
+
+### DownloadFile — Server Streaming
+
+The client requests a file by name and receives it as a stream of chunks. Each chunk carries up to 100 lines of the file and its sequence number. The stream closes automatically when all lines have been sent.
+
+```protobuf
+message FileRequest { string filename         = 1; }
+message FileChunk   { repeated string lines   = 1;
+                      int32 chunk_number       = 2; }
+```
+
+The server reads the file lazily using Java 25 core APIs — `Files.newBufferedReader()` streams line by line and `Gatherers.windowFixed(100)` batches them into fixed-size windows without loading the entire file into memory.
+
+The demo file is `src/main/resources/data/users.csv` (2,000 rows), which produces 21 chunks over the stream.
 
 ## Running the Server
 
@@ -44,7 +58,7 @@ The `bruno/` directory contains a ready-to-use collection.
 1. Open [Bruno](https://www.usebruno.com/) and select **Open Collection**.
 2. Point it to the `bruno/` folder in this repo.
 3. Select the `local` environment.
-4. Run the **SayHello** request.
+4. Run **SayHello** (unary) or **DownloadFile** (server streaming).
 
 ## Testing with grpcurl
 
@@ -56,31 +70,36 @@ Install [grpcurl](https://github.com/fullstorydev/grpcurl#installation) and make
 grpcurl -plaintext localhost:9090 list
 ```
 
-**Describe the SayHello method:**
-
-```bash
-grpcurl -plaintext localhost:9090 describe Greeter.SayHello
-```
-
 **Call SayHello:**
 
 ```bash
 grpcurl -plaintext -d '{"name": "World"}' localhost:9090 Greeter/SayHello
 ```
 
-Expected response:
+```json
+{ "message": "Hello, World!" }
+```
+
+**Stream DownloadFile:**
+
+```bash
+grpcurl -plaintext -d '{"filename": "users.csv"}' localhost:9090 Greeter/DownloadFile
+```
+
+Each response message contains a chunk of lines and its sequence number:
 
 ```json
-{
-  "message": "Hello, World!"
-}
+{ "lines": ["id,name,email,country,amount,date", "1,Bob 1,...", "..."], "chunkNumber": 1 }
+{ "lines": ["101,Alice 101,...", "..."], "chunkNumber": 2 }
+...
+{ "lines": ["1991,Carlos 1991,...", "..."], "chunkNumber": 21 }
 ```
 
 If the server does not have reflection enabled, pass the proto file directly:
 
 ```bash
 grpcurl -plaintext -proto src/main/proto/greeter.proto \
-  -d '{"name": "World"}' localhost:9090 Greeter/SayHello
+  -d '{"filename": "users.csv"}' localhost:9090 Greeter/DownloadFile
 ```
 
 ## Gradle Commands
@@ -125,7 +144,9 @@ src/
 │   ├── proto/
 │   │   └── greeter.proto
 │   └── resources/
-│       └── application.yaml
+│       ├── application.yaml
+│       └── data/
+│           └── users.csv          ← 2,000 rows streamed by DownloadFile
 └── test/
     └── java/dev/oswaldorosales/greeter/
         ├── grpc/
@@ -136,6 +157,7 @@ src/
 bruno/
 ├── bruno.json
 ├── SayHello.bru
+├── DownloadFile.bru
 └── environments/
     └── local.bru
 ```
