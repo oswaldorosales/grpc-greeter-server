@@ -102,6 +102,13 @@ grpcurl -plaintext -proto src/main/proto/greeter.proto \
   -d '{"filename": "users.csv"}' localhost:9090 Greeter/DownloadFile
 ```
 
+## Further Reading
+
+| Doc | Description |
+|---|---|
+| [gRPC Communication Patterns](docs/grpc-communication-patterns.md) | The 4 RPC types with diagrams, practical examples, and load balancing strategies |
+| [REST vs gRPC — File Streaming](docs/rest-vs-grpc-streaming.md) | Trade-off analysis for the `DownloadFile` streaming use case |
+
 ## Gradle Commands
 
 | Command | Description |
@@ -131,33 +138,3 @@ grpcurl -plaintext -proto src/main/proto/greeter.proto \
 ```
 
 Integration tests live under `src/test/java/.../integration/` and follow the `*IT` naming convention so they are excluded from the `test` task and only run when `integrationTest` is explicitly invoked.
-
-## Project Structure
-
-```
-src/
-├── main/
-│   ├── java/dev/oswaldorosales/greeter/
-│   │   ├── GrpcGreeterServerApplication.java
-│   │   └── grpc/
-│   │       └── GreeterGrpcService.java
-│   ├── proto/
-│   │   └── greeter.proto
-│   └── resources/
-│       ├── application.yaml
-│       └── data/
-│           └── users.csv          ← 2,000 rows streamed by DownloadFile
-└── test/
-    └── java/dev/oswaldorosales/greeter/
-        ├── grpc/
-        │   └── GreeterGrpcServiceTest.java     ← unit tests
-        └── integration/
-            └── GreeterGrpcServiceIT.java        ← integration tests (./gradlew integrationTest)
-
-bruno/
-├── bruno.json
-├── SayHello.bru
-├── DownloadFile.bru
-└── environments/
-    └── local.bru
-```
